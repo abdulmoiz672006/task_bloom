@@ -1,74 +1,44 @@
-replicaCount: 1
+backend:
+  replicaCount: 2
 
-image:
-  repository: moiz672006/taskbloom-frontend
-  pullPolicy: Always
-  tag: "v2"
+  image:
+    repository: moiz672006/taskbloom-backend
+    tag: latest
+    pullPolicy: Always
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
+  service:
+    type: ClusterIP
+    port: 5000
 
-serviceAccount:
-  create: true
-  automount: true
-  annotations: {}
-  name: ""
+frontend:
+  replicaCount: 2
 
-podAnnotations: {}
-podLabels: {}
-podSecurityContext: {}
-securityContext: {}
+  image:
+    repository: moiz672006/taskbloom-frontend
+    tag: latest
+    pullPolicy: Always
 
-service:
-  type: ClusterIP
-  port: 3000
+  service:
+    type: NodePort
+    port: 3000
 
 ingress:
-  enabled: false
-  className: ""
-  annotations: {}
+  enabled: true
+  className: nginx
+
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+
   hosts:
-    - host: chart-example.local
+    - host: ""
       paths:
-        - path: /
+        - path: /api(/|$)(.*)
           pathType: ImplementationSpecific
-  tls: []
+          serviceName: backend-service
+          servicePort: 5000
 
-httpRoute:
-  enabled: false
-  annotations: {}
-  parentRefs:
-  - name: gateway
-    sectionName: http
-  hostnames:
-  - chart-example.local
-  rules:
-  - matches:
-    - path:
-        type: PathPrefix
-        value: /headers
+        - path: /()(.*)
+          pathType: ImplementationSpecific
+          serviceName: frontend-service
+          servicePort: 3000
 
-livenessProbe:
-  httpGet:
-    path: /
-    port: 3000
-
-readinessProbe:
-  httpGet:
-    path: /
-    port: 3000
-
-resources: {}
-
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-
-volumes: []
-volumeMounts: []
-nodeSelector: {}
-tolerations: []
-affinity: {}
