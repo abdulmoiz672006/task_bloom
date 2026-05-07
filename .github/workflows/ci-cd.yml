@@ -61,7 +61,7 @@ jobs:
           docker build -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
           docker push ${{ env.BACKEND_IMAGE }}:latest
           docker push ${{ env.FRONTEND_IMAGE }}:latest
-
+          
   deploy:
     runs-on: ubuntu-latest
     needs: [docker-build-push]
