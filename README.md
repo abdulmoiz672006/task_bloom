@@ -1,7 +1,6 @@
 # TaskBloom 🌼
 
 A full-stack task management web application built with **Node.js + Express** on the backend and **React** on the frontend. Tasks are organized in a kanban-style dashboard across three status columns — all backed by a lightweight in-memory store, so there's zero database setup required.
-
 ---
 
 ## Tech Stack
