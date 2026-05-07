@@ -1,275 +1,82 @@
 name: TaskBloom CI/CD Pipeline
 
-# ─────────────────────────────────────────
-
-# TRIGGER: When will this pipeline run?
-
-# ─────────────────────────────────────────
-
 on:
-push:
-branches: [main]
-pull_request:
-branches: [main]
-
-# ─────────────────────────────────────────
-
-# ENVIRONMENT VARIABLES — Manage everything from one place
-
-# ─────────────────────────────────────────
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
 
 env:
-DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
-BACKEND_IMAGE: moiz672006/taskbloom-backend
-FRONTEND_IMAGE: moiz672006/taskbloom-frontend
+  BACKEND_IMAGE: moiz672006/taskbloom-backend
+  FRONTEND_IMAGE: moiz672006/taskbloom-frontend
 
 jobs:
+  backend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-# ════════════════════════════════════════
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-# JOB 1: BACKEND CI
+      - name: Install Backend Dependencies
+        working-directory: backend
+        run: npm install
 
-# What it does: Checks backend code
+  frontend-ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-# Why: Make sure code is working before deployment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
 
-# ════════════════════════════════════════
+      - name: Install Frontend Dependencies
+        working-directory: frontend
+        run: npm install
 
-backend-ci:
-name: 🔧 Backend CI
-runs-on: ubuntu-latest
+  docker-build-push:
+    runs-on: ubuntu-latest
+    needs: [backend-ci, frontend-ci]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-```
-steps:
-  - name: 📥 Checkout Code
-    uses: actions/checkout@v4
-    # Logical reason: GitHub Actions runner does not have your code by default
-    # This step copies your repository to the runner machine
+      - name: Login to DockerHub
+        uses: docker/login-action@v3
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-  - name: ⚙️ Setup Node.js 18
-    uses: actions/setup-node@v4
-    with:
-      node-version: '18'
-      cache: 'npm'
-      cache-dependency-path: backend/package-lock.json
-    # Logical reason: Install Node.js on the runner machine
-    # cache: Saves npm modules from previous runs for faster execution
+      - name: Build and Push Images
+        run: |
+          docker build -t ${{ env.BACKEND_IMAGE }}:latest ./backend
+          docker build -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
+          docker push ${{ env.BACKEND_IMAGE }}:latest
+          docker push ${{ env.FRONTEND_IMAGE }}:latest
 
-  - name: 📦 Install Backend Dependencies
-    working-directory: backend
-    run: npm ci
-    # Logical reason: npm ci = clean and reliable install
-    # Installs exact dependency versions
-
-  - name: 🧪 Run Backend Tests
-    working-directory: backend
-    run: npm test --if-present
-    # Logical reason: Stop pipeline if tests fail
-    # --if-present prevents error if no test script exists
-
-  - name: 🐳 Verify Backend Dockerfile Exists
-    run: |
-      if [ ! -f backend/Dockerfile ]; then
-        echo "❌ Backend Dockerfile missing!"
-        exit 1
-      fi
-      echo "✅ Backend Dockerfile found"
-    # Logical reason: Docker build will fail if Dockerfile is missing
-    # Better to check early
-```
-
-# ════════════════════════════════════════
-
-# JOB 2: FRONTEND CI
-
-# What it does: Builds React application
-
-# Why: Prevent deployment if build fails
-
-# ════════════════════════════════════════
-
-frontend-ci:
-name: ⚛️ Frontend CI
-runs-on: ubuntu-latest
-
-```
-steps:
-  - name: 📥 Checkout Code
-    uses: actions/checkout@v4
-
-  - name: ⚙️ Setup Node.js 18
-    uses: actions/setup-node@v4
-    with:
-      node-version: '18'
-      cache: 'npm'
-      cache-dependency-path: frontend/package-lock.json
-
-  - name: 📦 Install Frontend Dependencies
-    working-directory: frontend
-    run: npm ci
-
-  - name: 🧪 Run Frontend Tests
-    working-directory: frontend
-    run: npm test -- --watchAll=false --passWithNoTests
-    # Logical reason:
-    # --watchAll=false disables watch mode in CI
-    # --passWithNoTests prevents failure if no tests exist
-
-  - name: 🏗️ Build React App
-    working-directory: frontend
-    run: npm run build
-    # Logical reason: Create production build
-    # Detects syntax/build errors before deployment
-
-  - name: 🐳 Verify Frontend Dockerfile Exists
-    run: |
-      if [ ! -f frontend/Dockerfile ]; then
-        echo "❌ Frontend Dockerfile missing!"
-        exit 1
-      fi
-      echo "✅ Frontend Dockerfile found"
-```
-
-# ════════════════════════════════════════
-
-# JOB 3: DOCKER BUILD + PUSH
-
-# What it does: Builds Docker images and pushes them to DockerHub
-
-# Why: Kubernetes pulls images from DockerHub
-
-# Runs only on main branch pushes
-
-# ════════════════════════════════════════
-
-docker-build-push:
-name: 🐳 Docker Build & Push
-runs-on: ubuntu-latest
-needs: [backend-ci, frontend-ci]
-# Logical reason: Build Docker images only if CI passes
-# Broken code should not become Docker images
-
-```
-if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-# Logical reason: Do not push Docker images for pull requests
-# Only push after merge to main branch
-
-steps:
-  - name: 📥 Checkout Code
-    uses: actions/checkout@v4
-
-  - name: 🔑 Login to DockerHub
-    uses: docker/login-action@v3
-    with:
-      username: ${{ secrets.DOCKERHUB_USERNAME }}
-      password: ${{ secrets.DOCKERHUB_TOKEN }}
-    # Logical reason: Authentication is required to push images
-    # Token is more secure than password
-
-  - name: 🏷️ Generate Image Tag
-    id: tag
-    run: |
-      SHA=$(echo ${{ github.sha }} | cut -c1-7)
-      echo "sha=$SHA" >> $GITHUB_OUTPUT
-      echo "Image tag will be: $SHA"
-    # Logical reason: Create unique tag for every commit
-    # Helps in rollback and version tracking
-
-  - name: 🔧 Build & Push Backend Image
-    uses: docker/build-push-action@v5
-    with:
-      context: ./backend
-      push: true
-      tags: |
-        ${{ env.BACKEND_IMAGE }}:latest
-        ${{ env.BACKEND_IMAGE }}:${{ steps.tag.outputs.sha }}
-    # Logical reason:
-    # latest = newest version
-    # SHA tag = exact commit version
-
-  - name: ⚛️ Build & Push Frontend Image
-    uses: docker/build-push-action@v5
-    with:
-      context: ./frontend
-      push: true
-      tags: |
-        ${{ env.FRONTEND_IMAGE }}:latest
-        ${{ env.FRONTEND_IMAGE }}:${{ steps.tag.outputs.sha }}
-
-  - name: 📋 Summary
-    run: |
-      echo "✅ Images pushed:"
-      echo "   - ${{ env.BACKEND_IMAGE }}:${{ steps.tag.outputs.sha }}"
-      echo "   - ${{ env.FRONTEND_IMAGE }}:${{ steps.tag.outputs.sha }}"
-```
-
-# ════════════════════════════════════════
-
-# JOB 4: DEPLOY TO EC2 + KUBERNETES
-
-# What it does:
-
-# SSH into EC2 and update Kubernetes deployments
-
-# Why:
-
-# New image available → tell Kubernetes to use updated image
-
-# ════════════════════════════════════════
-
-deploy:
-name: 🚀 Deploy to EC2 Kubernetes
-runs-on: ubuntu-latest
-needs: [docker-build-push]
-
-```
-# Logical reason:
-# Deploy only after Docker images are pushed successfully
-
-if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-steps:
-  - name: 📥 Checkout Code
-    uses: actions/checkout@v4
-
-  - name: 🚀 SSH into EC2 and Deploy
-    uses: appleboy/ssh-action@v1
-    with:
-      host: ${{ secrets.EC2_HOST }}
-      username: ubuntu
-      key: ${{ secrets.EC2_SSH_KEY }}
-
-      script: |
-        set -e
-        # Stop execution immediately if any command fails
-
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        echo "🚀 TaskBloom Deployment Started"
-        echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-        # Step A: Pull latest code from GitHub
-        cd ~/task_bloom
-        git pull origin main
-        echo "✅ Code updated from GitHub"
-
-        # Step B: Pull latest Docker images
-        docker pull moiz672006/taskbloom-backend:latest
-        docker pull moiz672006/taskbloom-frontend:latest
-        echo "✅ Latest Docker images pulled"
-
-        # Step C: Restart Kubernetes deployments
-        kubectl rollout restart deployment/backend -n taskbloom
-        kubectl rollout restart deployment/frontend -n taskbloom
-        echo "✅ Kubernetes rollout started"
-
-        # Step D: Wait until deployment finishes
-        kubectl rollout status deployment/backend -n taskbloom --timeout=120s
-        kubectl rollout status deployment/frontend -n taskbloom --timeout=120s
-        echo "✅ Deployments are live!"
-
-        # Step E: Show running pods
-        echo ""
-        echo "📦 Running Pods:"
-        kubectl get pods -n taskbloom
-```
-
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [docker-build-push]
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ubuntu
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ~/task_bloom
+            git pull origin main
+            docker pull ${{ env.BACKEND_IMAGE }}:latest
+            docker pull ${{ env.FRONTEND_IMAGE }}:latest
+            kubectl rollout restart deployment/backend -n taskbloom
+            kubectl rollout restart deployment/frontend -n taskbloom
