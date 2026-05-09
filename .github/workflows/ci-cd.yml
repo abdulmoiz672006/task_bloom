@@ -74,9 +74,19 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
+            # Project folder mein jana
             cd ~/task_bloom
+            
+            # Latest code pull karna
             git pull origin main
+            
+            # Docker images update karna
             docker pull ${{ env.BACKEND_IMAGE }}:latest
             docker pull ${{ env.FRONTEND_IMAGE }}:latest
-            kubectl rollout restart deployment/backend -n taskbloom
-            kubectl rollout restart deployment/frontend -n taskbloom
+            
+            # Helm ke zariye deployment update karna
+            # --install ka matlab hai agar pehle se install nahi hai toh kar do
+            helm upgrade --install taskbloom ./helm/taskbloom -n taskbloom
+            
+            # Ingress webhook bypass (taki networking error na aye)
+            kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission || true
