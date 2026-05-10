@@ -1,9 +1,15 @@
 const express = require('express');
 const cors = require('cors');
 const { v4: uuidv4 } = require('uuid');
+const client = require('prom-client'); // STEP 2: Prometheus client import
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// ── Prometheus Metrics Setup ────────────────────────────────────────────────
+// Is se default metrics (CPU, RAM, Event Loop) collect hona shuru ho jayenge
+const collectDefaultMetrics = client.collectDefaultMetrics;
+collectDefaultMetrics({ register: client.register });
 
 // ── Logging middleware ──────────────────────────────────────────────────────
 app.use((req, res, next) => {
@@ -40,6 +46,13 @@ let tasks = [
     createdAt: new Date().toISOString(),
   },
 ];
+
+// ── Prometheus Metrics Endpoint ─────────────────────────────────────────────
+// Ye wo rasta hai jahan se Prometheus data uthayega
+app.get('/metrics', async (req, res) => {
+  res.set('Content-Type', client.register.contentType);
+  res.end(await client.register.metrics());
+});
 
 // ── Health ──────────────────────────────────────────────────────────────────
 app.get('/health', (req, res) => {
@@ -115,3 +128,4 @@ app.delete('/tasks/:id', (req, res) => {
 app.listen(PORT, () => {
   console.log(`🌼 TaskBloom backend running on http://localhost:${PORT}`);
 });
+
