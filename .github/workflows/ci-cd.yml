@@ -16,12 +16,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Install Backend Dependencies
         working-directory: backend
         run: npm install
@@ -31,12 +29,10 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-
       - name: Install Frontend Dependencies
         working-directory: frontend
         run: npm install
@@ -48,20 +44,18 @@ jobs:
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
-
       - name: Login to DockerHub
         uses: docker/login-action@v3
         with:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-
       - name: Build and Push Images
         run: |
           docker build -t ${{ env.BACKEND_IMAGE }}:latest ./backend
           docker build -t ${{ env.FRONTEND_IMAGE }}:latest ./frontend
           docker push ${{ env.BACKEND_IMAGE }}:latest
           docker push ${{ env.FRONTEND_IMAGE }}:latest
-          
+
   deploy:
     runs-on: ubuntu-latest
     needs: [docker-build-push]
@@ -74,19 +68,38 @@ jobs:
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Project folder mein jana
             cd ~/task_bloom
-            
-            # Latest code pull karna
             git pull origin main
-            
-            # Docker images update karna
-            docker pull ${{ env.BACKEND_IMAGE }}:latest
-            docker pull ${{ env.FRONTEND_IMAGE }}:latest
-            
-            # Helm ke zariye deployment update karna
-            # --install ka matlab hai agar pehle se install nahi hai toh kar do
+
+            docker pull moiz672006/taskbloom-backend:latest
+            docker pull moiz672006/taskbloom-frontend:latest
+
             helm upgrade --install taskbloom ./helm/taskbloom -n taskbloom
-            
-            # Ingress webhook bypass (taki networking error na aye)
             kubectl delete -A ValidatingWebhookConfiguration ingress-nginx-admission || true
+
+            kubectl set env deployment/monitoring-grafana -n monitoring \
+              GF_SERVER_ROOT_URL=http://${{ secrets.EC2_HOST }}/grafana/ \
+              GF_SERVER_SERVE_FROM_SUB_PATH=true
+
+            kubectl apply -f - <<YAML
+            apiVersion: monitoring.coreos.com/v1
+            kind: ServiceMonitor
+            metadata:
+              name: taskbloom-backend
+              namespace: monitoring
+              labels:
+                release: monitoring
+            spec:
+              namespaceSelector:
+                matchNames:
+                  - taskbloom
+              selector:
+                matchLabels:
+                  app: backend
+              endpoints:
+                - path: /metrics
+                  targetPort: 5000
+                  interval: 15s
+            YAML
+
+            echo "Deploy complete: http://${{ secrets.EC2_HOST }}/"

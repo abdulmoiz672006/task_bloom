@@ -37,6 +37,11 @@ ingress:
           serviceName: backend-service
           servicePort: 5000
 
+        - path: /grafana(/|$)(.*)
+          pathType: ImplementationSpecific
+          serviceName: monitoring-grafana
+          servicePort: 80
+
         - path: /()(.*)
           pathType: ImplementationSpecific
           serviceName: frontend-service
