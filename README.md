@@ -228,6 +228,34 @@ Grafana   →  http://localhost/grafana
 
 ---
 
+## 📸 Screenshots
+
+### Live Application
+![TaskBloom UI](screenshots/app-ui.png)
+
+### Monitoring Dashboard (Grafana + Prometheus)
+![Grafana Dashboard](screenshots/grafana-dashboard.png)
+
+### CI/CD Pipeline (GitHub Actions)
+![CI/CD Pipeline](screenshots/cicd-pipeline.png)
+
+### Kubernetes Cluster Status
+![Cluster Pods](screenshots/kubectl-pods.png)
+
+### NGINX Ingress Routing
+![Ingress Config](screenshots/ingress-config.png)
+
+### Helm Deployment
+![Helm Deploy](screenshots/helm-deploy.png)
+
+---
+
+## ⚠️ Project Status
+
+This project was built purely for learning and practice purposes. The AWS EC2 instance and cloud resources have since been deleted to avoid ongoing costs, so the live links (app, API, Grafana) are no longer active. GitHub Actions CI/CD has also been disabled since there is no live server to deploy to. All code, configuration, and documentation remain intact to demonstrate the DevOps workflow that was implemented.
+
+---
+
 ## 📜 Credits & Attribution
 
 This project focuses on the DevOps transformation of an existing codebase.
