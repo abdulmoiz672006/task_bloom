@@ -231,22 +231,22 @@ Grafana   →  http://localhost/grafana
 ## 📸 Screenshots
 
 ### Live Application
-![TaskBloom UI](screenshots/app-ui.png)
+![TaskBloom UI](screenshots/Screenshot%202026-05-09%20101216.png)
 
 ### Monitoring Dashboard (Grafana + Prometheus)
-![Grafana Dashboard](screenshots/grafana-dashboard.png)
+![Grafana Dashboard](screenshots/Screenshot%202026-05-11%20163939.png)
 
 ### CI/CD Pipeline (GitHub Actions)
-![CI/CD Pipeline](screenshots/cicd-pipeline.png)
+![CI/CD Pipeline](screenshots/Screenshot%202026-05-08%20154050.png)
 
 ### Kubernetes Cluster Status
-![Cluster Pods](screenshots/kubectl-pods.png)
+![Cluster Pods](screenshots/Screenshot%202026-05-12%20184432.png)
 
 ### NGINX Ingress Routing
-![Ingress Config](screenshots/ingress-config.png)
+![Ingress Config](screenshots/Screenshot%202026-05-06%20163947.png)
 
 ### Helm Deployment
-![Helm Deploy](screenshots/helm-deploy.png)
+![Helm Deploy](screenshots/Screenshot%202026-05-10%20102814.png)
 
 ---
 
